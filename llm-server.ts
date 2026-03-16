@@ -46,12 +46,17 @@ ${summary}
 Please answer succinctly with concrete insights: highlight top failing files, flaky patterns, and suggested improvements.
 `;
 
-    const completion = await client.responses.create({
-      model: 'gpt-4.1-mini',
-      input: prompt
+    const completion = await client.chat.completions.create({
+      model: 'gpt-4o-mini',
+      messages: [
+        {
+          role: 'user',
+          content: prompt
+        }
+      ]
     });
 
-    const answer = (completion.output[0] as any).content[0].text;
+    const answer = completion.choices[0]?.message?.content ?? '';
     res.json({ answer });
   } catch (err: any) {
     console.error(err);
@@ -63,4 +68,3 @@ const port = process.env.PORT || 3000;
 app.listen(port, () => {
   console.log(`LLM server listening on http://localhost:${port}`);
 });
-

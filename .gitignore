@@ -1,0 +1,44 @@
+##############################
+# Node / General
+##############################
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+package-lock.json.*
+*.log
+
+dist/
+build/
+out/
+coverage/
+.nyc_output/
+
+*.tsbuildinfo
+
+##############################
+# Playwright
+##############################
+playwright-report/
+blob-report/
+test-results/
+.playwright/
+
+##############################
+# Env / Secrets
+##############################
+.env
+.env.*
+!.env.example
+
+##############################
+# OS / Editor cruft
+##############################
+.DS_Store
+Thumbs.db
+*.swp
+*.swo
+.idea/
+.vscode/
+
