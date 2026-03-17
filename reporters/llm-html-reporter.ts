@@ -12,6 +12,17 @@ import * as path from 'path';
 type ReporterOptions = {
   outputDir?: string;
   title?: string;
+  /**
+   * Optional port where the LLM server is listening.
+   * Used only to build the default LLM endpoint in the HTML report.
+   * If `llmEndpoint` is provided, this is ignored.
+   */
+  llmPort?: number;
+  /**
+   * Optional full LLM endpoint URL (e.g. "http://localhost:4000/llm/analyze").
+   * If provided, overrides the port-based default.
+   */
+  llmEndpoint?: string;
 };
 
 type SerializedAttachment = {
@@ -55,7 +66,11 @@ export default class LlmHtmlReporter implements Reporter {
   constructor(options: ReporterOptions = {}) {
     this.options = {
       outputDir: options.outputDir || 'playwright-llm-report',
-      title: options.title || 'Playwright LLM Report'
+      title: options.title || 'Playwright LLM Report',
+      // Use sentinel defaults so llmPort/llmEndpoint are always defined.
+      // The actual endpoint is computed in buildHtml().
+      llmPort: options.llmPort ?? -1,
+      llmEndpoint: options.llmEndpoint ?? ''
     };
   }
 
@@ -118,6 +133,10 @@ export default class LlmHtmlReporter implements Reporter {
 
   private buildHtml(): string {
     const title = this.options.title;
+    const llmEndpoint = this.options.llmEndpoint
+      || (typeof this.options.llmPort === 'number'
+        ? `http://localhost:${this.options.llmPort}/llm/analyze`
+        : 'http://localhost:3000/llm/analyze');
     const dataJson = JSON.stringify(this.results).replace(/</g, '\\u003c');
     return `<!DOCTYPE html>
 <html lang="en">
@@ -125,6 +144,11 @@ export default class LlmHtmlReporter implements Reporter {
   <meta charset="UTF-8" />
   <title>${title}</title>
   <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <script>
+    // LLM endpoint used by the "Ask LLM" panel. Can be overridden at report time
+    // by passing llmEndpoint or llmPort to the reporter options.
+    window.LLM_ENDPOINT = '${llmEndpoint.replace(/'/g, "\\'")}';
+  </script>
   <style>
     :root {
       --bg: #0f172a;
@@ -545,6 +569,69 @@ export default class LlmHtmlReporter implements Reporter {
       box-shadow: none;
     }
 
+    .llm-secondary-button {
+      padding: 7px 12px;
+      border-radius: 999px;
+      border: 1px solid rgba(148,163,184,0.55);
+      cursor: pointer;
+      font-size: 12px;
+      font-weight: 500;
+      background: radial-gradient(circle at top left, rgba(15,23,42,1), #020617);
+      color: var(--text);
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      box-shadow: 0 10px 24px rgba(15,23,42,0.9);
+      white-space: nowrap;
+    }
+
+    .llm-secondary-button:hover {
+      border-color: rgba(56,189,248,0.8);
+      color: var(--accent);
+    }
+
+    .llm-status-group {
+      display: flex;
+      flex-direction: column;
+      align-items: flex-end;
+      gap: 6px;
+      font-size: 11px;
+    }
+
+    .llm-status {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 4px 8px;
+      border-radius: 999px;
+      background: radial-gradient(circle at top left, rgba(15,23,42,0.95), #020617);
+      border: 1px solid rgba(55,65,81,0.9);
+      color: var(--text-muted);
+    }
+
+    .llm-status-dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 999px;
+      background: #6b7280;
+      box-shadow: 0 0 0 0 rgba(148,163,184,0.8);
+    }
+
+    .llm-status-dot.connected {
+      background: var(--success);
+      box-shadow: 0 0 0 6px rgba(74,222,128,0.15);
+    }
+
+    .llm-status-dot.disconnected {
+      background: var(--danger);
+      box-shadow: 0 0 0 6px rgba(248,113,113,0.18);
+    }
+
+    .llm-status-dot.partial {
+      background: #facc15;
+      box-shadow: 0 0 0 6px rgba(250,204,21,0.18);
+    }
+
     .llm-output {
       max-height: 140px;
       overflow: auto;
@@ -625,6 +712,12 @@ export default class LlmHtmlReporter implements Reporter {
           <div>
             <div class="title">Test details & LLM</div>
             <div class="subtitle">Browse tests and ask an LLM about this run.</div>
+          </div>
+          <div class="llm-status-group">
+            <div class="llm-status" id="llm-status">
+              <span class="llm-status-dot" id="llm-status-dot"></span>
+              <span id="llm-status-text">Checking LLM server...</span>
+            </div>
           </div>
         </div>
 
@@ -1154,6 +1247,63 @@ export default class LlmHtmlReporter implements Reporter {
       const input = document.getElementById('llm-input');
       const send = document.getElementById('llm-send');
       const out = document.getElementById('llm-output');
+      const statusDot = document.getElementById('llm-status-dot');
+      const statusText = document.getElementById('llm-status-text');
+      const startBtn = document.getElementById('llm-start-btn');
+
+      function updateStatus(state, text) {
+        if (!statusDot || !statusText) return;
+        statusDot.classList.remove('connected', 'disconnected', 'partial');
+        if (state === 'connected') {
+          statusDot.classList.add('connected');
+        } else if (state === 'disconnected') {
+          statusDot.classList.add('disconnected');
+        } else if (state === 'partial') {
+          statusDot.classList.add('partial');
+        }
+        statusText.textContent = text;
+      }
+
+      async function checkLlmConnectivity() {
+        if (!window.LLM_ENDPOINT) {
+          updateStatus('disconnected', 'LLM endpoint not configured');
+          return;
+        }
+
+        try {
+          const controller = new AbortController();
+          const timeout = setTimeout(() => controller.abort(), 4000);
+          const res = await fetch(window.LLM_ENDPOINT, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ question: 'health check', tests: [] }),
+            signal: controller.signal
+          });
+          clearTimeout(timeout);
+          if (!res.ok) {
+            updateStatus('disconnected', 'LLM server not reachable');
+            return;
+          }
+          const data = await res.json();
+          const answer = String(data.answer || '').toLowerCase();
+          if (answer.includes('not configured') || answer.includes('missing openai_api_key')) {
+            updateStatus('partial', 'Server up (no OPENAI_API_KEY)');
+          } else {
+            updateStatus('connected', 'LLM server connected');
+          }
+        } catch (e) {
+          updateStatus('disconnected', 'LLM server not reachable');
+        }
+      }
+
+      if (startBtn && out) {
+        startBtn.addEventListener('click', () => {
+          out.classList.remove('empty');
+          out.textContent =
+            'To start the LLM server, run "npm run llm-server". Once the server is running, this report will show the LLM as connected.';
+          checkLlmConnectivity();
+        });
+      }
 
       async function callLlm() {
         const question = input.value.trim();
@@ -1187,6 +1337,7 @@ export default class LlmHtmlReporter implements Reporter {
           callLlm();
         }
       });
+      checkLlmConnectivity();
     }
 
     (() => {

@@ -5,7 +5,7 @@ This guide shows how to integrate **Playwright LLM Reporter** into your existing
 ## Installation
 
 ```bash
-npm install --save-dev @playwright/llm-reporter
+npm install --save-dev @gcombrinck/playwright-llm-reporter
 ```
 
 ## Quick Start
@@ -16,7 +16,7 @@ Add the reporter to your Playwright configuration:
 
 ```typescript
 import type { PlaywrightTestConfig } from '@playwright/test';
-import type { LlmReporterOptions } from '@playwright/llm-reporter';
+import type { LlmReporterOptions } from '@gcombrinck/playwright-llm-reporter';
 
 const config: PlaywrightTestConfig = {
   testDir: './tests',
@@ -28,7 +28,7 @@ const config: PlaywrightTestConfig = {
   },
   reporter: [
     ['html'],  // Keep the default HTML reporter if you want
-    ['@playwright/llm-reporter', {
+    ['@gcombrinck/playwright-llm-reporter', {
       outputDir: 'playwright-llm-report',
       title: 'My Test Report',
       // port: 3000  // Optional: override LLM server port (default 3000)
@@ -79,18 +79,18 @@ $env:OPENAI_API_KEY="sk-..."
 In a separate terminal:
 
 ```bash
-npx @playwright/llm-reporter llm-server
+npx @gcombrinck/playwright-llm-reporter llm-server
 ```
 
 Or run it programmatically:
 
 ```typescript
-import { startLlmServer } from '@playwright/llm-reporter/llm-server';
+import { startLlmServer } from '@gcombrinck/playwright-llm-reporter/llm-server';
 
 startLlmServer({ port: 3000 });
 ```
 
-The server will listen on `http://localhost:3000` by default.
+The server will listen on `http://localhost:3000` by default, or `process.env.PORT` if set.
 
 ### 3. Run Tests + View Report
 
@@ -106,7 +106,7 @@ Pass options to the reporter via the configuration array:
 
 ```typescript
 reporter: [
-  ['@playwright/llm-reporter', {
+  ['@gcombrinck/playwright-llm-reporter', {
     outputDir: 'my-reports',           // Output directory (default: playwright-llm-report)
     title: 'E2E Test Results',          // Report title (default: Playwright LLM Report)
     port: 3001,                         // LLM server port (default: 3000)
@@ -159,7 +159,7 @@ Check:
 ### LLM server connection error
 
 Ensure:
-1. LLM server is running in a separate terminal (`npx @playwright/llm-reporter llm-server`)
+1. LLM server is running in a separate terminal (`npx @gcombrinck/playwright-llm-reporter llm-server`)
 2. `OPENAI_API_KEY` is set
 3. Port 3000 (or your configured port) is not in use
 
@@ -224,6 +224,6 @@ The report can be committed to your repo or uploaded to a static hosting service
 ## Support
 
 For issues, questions, or feature requests, see the project repository:
-- **Issues**: https://github.com/yourusername/playwright-llm-reporter/issues
-- **Discussions**: https://github.com/yourusername/playwright-llm-reporter/discussions
+- **Issues**: https://github.com/gcombrinck/playwright-llm-reporter/issues
+- **Discussions**: https://github.com/gcombrinck/playwright-llm-reporter/discussions
 

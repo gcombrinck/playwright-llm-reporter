@@ -1,301 +1,410 @@
 # Publishing Guide
 
-Complete instructions for publishing **Playwright LLM Reporter** to npm and making it available to the community.
+This guide explains how to publish the **Playwright LLM HTML Reporter** package to the npm registry so it can be installed as `@gcombrinck/playwright-llm-reporter`.
 
-## Pre-Publishing Checklist
+> This document is aimed at project maintainers who have publish rights for the package.
 
-- [ ] Update version in `package.json` (follow [semver](https://semver.org/))
-- [ ] Update `CHANGELOG.md` with new features and fixes
-- [ ] Ensure all tests pass: `npm test`
-- [ ] Build successfully: `npm run build`
-- [ ] Review code and security
-- [ ] Add yourself as a contributor in `package.json`
+---
 
-## Step 1: Set Up npm Account
+## 1. Prerequisites
 
-If you don't have an npm account:
+### 1.1. Accounts & Permissions
 
-1. Go to [npmjs.com](https://www.npmjs.com)
-2. Click "Sign Up"
-3. Create account with email and strong password
-4. Verify email
+- **npm account**: Create one if you don’t already have it: https://www.npmjs.com/signup
+- **Publish rights**:
+  - If publishing as `@gcombrinck/playwright-llm-reporter`, you must belong to the organization that owns the `@gcombrinck` scope **or** own that scope yourself.
+  - Otherwise, adjust the scope/name (e.g. `@your-org/llm-reporter`).
 
-## Step 2: Authenticate with npm Locally
+Check your npm identity and whether the target package name is available or already owned:
 
-```bash
+```powershell
+# Who you are logged in as
+npm whoami
+
+# Check if the package name is already in use and by whom
+npm view @gcombrinck/playwright-llm-reporter
+
+# (Optional) If you publish under an org/scope, list its members
+npm org ls @your-org
+```
+
+### 1.2. Local Environment
+
+- Node.js (LTS recommended).
+- npm (comes with Node.js).
+- This repository cloned locally.
+
+Install project dependencies:
+
+```powershell
+cd C:\playwright-llm-reporter
+npm install
+```
+
+### 1.3. npm Login
+
+Log in to npm from this machine (once per environment/session):
+
+```powershell
 npm login
 ```
 
-Enter your npm credentials when prompted. This creates/updates `~/.npmrc` with your auth token.
+Follow the prompts for username, password, and 2FA (if enabled).
 
-Verify login:
+---
 
-```bash
-npm whoami
+## 2. Project Build Overview
+
+This project is written in TypeScript and compiled before publishing.
+
+Key files:
+
+- `reporters/llm-html-reporter.ts` – Playwright reporter implementation
+- `llm-server.ts` – optional Express-based LLM server
+- `tsconfig.json` – TypeScript configuration
+- `package.json` – npm metadata and scripts
+
+The build script (see `package.json`) compiles TypeScript to JavaScript (typically into a `dist/` directory):
+
+```powershell
+npm run build
 ```
 
-## Step 3: Prepare Your Package
+Make sure this command completes successfully before publishing.
 
-### Update Repository URL in package.json
+---
 
-```json
+## 3. One-Time Package Setup
+
+These steps are usually done once per project and updated only when layout or public API changes.
+
+### 3.1. Confirm Package Name
+
+Open `package.json` and verify the `name` field:
+
+```jsonc
 {
-  "repository": {
-    "type": "git",
-    "url": "https://github.com/yourusername/playwright-llm-reporter.git"
+  "name": "@gcombrinck/playwright-llm-reporter",
+  // ...
+}
+```
+
+If you need a different scope (for example `@your-org/llm-reporter`), update:
+
+- `"name"` in `package.json`
+- Usage examples in `INTEGRATION.md` and `README.md` (e.g. `npm install --save-dev @gcombrinck/playwright-llm-reporter`)
+- Import paths like `import type { LlmReporterOptions } from '@gcombrinck/playwright-llm-reporter';`
+
+### 3.2. Entry Points & Files
+
+Ensure consumers load the compiled output, not the raw TypeScript.
+
+In `package.json`, you should have something like (adapt paths to your actual `dist` layout):
+
+```jsonc
+{
+  "main": "dist/reporters/llm-html-reporter.js",
+  "types": "dist/reporters/llm-html-reporter.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/reporters/llm-html-reporter.d.ts",
+      "default": "./dist/reporters/llm-html-reporter.js"
+    },
+    "./llm-server": {
+      "types": "./dist/llm-server.d.ts",
+      "default": "./dist/llm-server.js"
+    }
+  },
+  "files": [
+    "dist",
+    "README.md",
+    "INTEGRATION.md",
+    "LICENSE"
+  ]
+}
+```
+
+Adjust these paths if your compiled output lives elsewhere or you use a different folder structure.
+
+### 3.3. Initial Version
+
+Set a semantic version in `package.json`:
+
+```jsonc
+{
+  "version": "0.1.0"
+}
+```
+
+Use [SemVer](https://semver.org/) conventions:
+
+- `MAJOR.MINOR.PATCH`
+- Bump:
+  - **PATCH** for bug fixes (e.g. `0.1.0` → `0.1.1`)
+  - **MINOR** for backward-compatible features (e.g. `0.1.0` → `0.2.0`)
+  - **MAJOR** for breaking changes (e.g. `0.1.0` → `1.0.0`)
+
+---
+
+## 4. Build & Verify Before Publishing
+
+Run these steps **every time** before you publish a new version.
+
+1. **Install dependencies (if not already done):**
+
+   ```powershell
+   npm install
+   ```
+
+2. **Build the project:**
+
+   ```powershell
+   npm run build
+   ```
+
+   Confirm that TypeScript compiles without errors and that the expected `dist/` files exist.
+
+3. **Run tests to ensure the reporter still works:**
+
+   ```powershell
+   npm test
+   ```
+
+   This should generate a report at `playwright-llm-report/index.html` using the custom reporter.
+
+4. **Inspect the package contents with a dry run:**
+
+   ```powershell
+   npm pack --dry-run
+   ```
+
+   Review the output list to ensure only the intended files are included (primarily `dist/` and key docs).
+
+---
+
+## 5. Version Bumping
+
+Before each publish, bump the version number.
+
+You can do this manually by editing `package.json`, or use npm helpers:
+
+```powershell
+# For a patch release (bug fixes)
+npm version patch
+
+# For a minor release (new features, no breaking changes)
+npm version minor
+
+# For a major release (breaking changes)
+npm version major
+```
+
+These commands will:
+
+- Update the `version` in `package.json` (and `package-lock.json` if present)
+- Create a Git tag like `v0.1.1`
+
+If you use Git, commit the changes:
+
+```powershell
+git add package.json package-lock.json
+git commit -m "chore: release v0.1.1"
+# Optional: push tag
+git tag v0.1.1
+git push origin main --follow-tags
+```
+
+Adjust the branch name (`main`) and version tag as needed.
+
+---
+
+## 6. Publishing to npm
+
+### 6.1. Access Configuration
+
+For scoped packages like `@gcombrinck/playwright-llm-reporter`, configure publish access in `package.json`:
+
+```jsonc
+{
+  "publishConfig": {
+    "access": "public"
   }
 }
 ```
 
-### Create/Update Key Files
+If you are publishing to a private registry or want private access, adjust accordingly.
 
-- **README.md** – Comprehensive usage guide
-- **LICENSE** – MIT license included ✓
-- **AGENTS.md** – Developer guide ✓
-- **INTEGRATION.md** – Integration instructions ✓
-- **CHANGELOG.md** – Version history
+### 6.2. Final Checks
 
-Example `CHANGELOG.md`:
+Before publishing:
 
-```markdown
-# Changelog
+- Build succeeds: `npm run build`
+- Tests pass: `npm test`
+- Package contents are correct: `npm pack --dry-run`
+- Version has been bumped and not used previously on npm.
 
-## [1.0.0] - 2026-03-17
+### 6.3. Publish Command
 
-### Added
-- Initial release
-- Interactive HTML reporting with charts
-- Artifact management (screenshots, videos, traces)
-- Optional LLM analysis via OpenAI
-- Express.js LLM server
-- Full TypeScript support
+From the project root (`C:\playwright-llm-reporter`):
 
-### Features
-- Single-file HTML report (no external assets)
-- Dark theme with glassmorphic UI
-- Filterable/sortable test table
-- Error preview with full stack on hover
-- Per-project test breakdown
-```
-
-## Step 4: Build and Test
-
-```bash
-# Clean previous build
-rm -r dist
-
-# Compile TypeScript
-npm run build
-
-# Verify dist/ contains compiled files
-ls dist/reporters/
-ls dist/llm-server.js
-```
-
-## Step 5: Create GitHub Release (Recommended)
-
-On your GitHub repository:
-
-1. Go to **Releases** → **Draft a new release**
-2. Tag: `v1.0.0`
-3. Title: `Release 1.0.0 - Initial Release`
-4. Description: Copy from `CHANGELOG.md`
-5. **Publish release**
-
-## Step 6: Publish to npm
-
-### Initial Publication
-
-```bash
-npm publish --access public
-```
-
-`--access public` makes the package public so anyone can install it.
-
-For scoped packages (like `@yourorg/package`), you may need:
-
-```bash
-npm publish --access public
-```
-
-### Verify Publication
-
-Check on npm:
-
-```bash
-npm info @playwright/llm-reporter
-```
-
-Or browse: https://www.npmjs.com/package/@playwright/llm-reporter
-
-### After Publication
-
-Test the package in a fresh directory:
-
-```bash
-mkdir test-install
-cd test-install
-npm init -y
-npm install --save-dev @playwright/llm-reporter
-cat node_modules/@playwright/llm-reporter/package.json
-```
-
-## Step 7: Update Documentation
-
-### Add to README
-
-If the package is published on npm, update your README to reference the npm package:
-
-```markdown
-## Installation
-
-```bash
-npm install --save-dev @playwright/llm-reporter
-```
-
-### Update URLs
-
-- Update GitHub URLs in `package.json` to point to your repo
-- Update homepage in `package.json`
-- Link `INTEGRATION.md` from main README
-
-## Publishing Updates
-
-### Versioning Scheme
-
-Follow [Semantic Versioning](https://semver.org/):
-
-- **PATCH** (1.0.1): Bug fixes, non-breaking
-- **MINOR** (1.1.0): New features, backward compatible
-- **MAJOR** (2.0.0): Breaking changes
-
-### Publishing a New Version
-
-1. Update version in `package.json`:
-
-```bash
-npm version patch   # 1.0.0 → 1.0.1
-npm version minor   # 1.0.0 → 1.1.0
-npm version major   # 1.0.0 → 2.0.0
-```
-
-2. Update `CHANGELOG.md` with changes
-
-3. Commit and push:
-
-```bash
-git add package.json CHANGELOG.md
-git commit -m "bump version to 1.0.1"
-git push origin main
-```
-
-4. Create GitHub release (repeat Step 5)
-
-5. Publish to npm:
-
-```bash
+```powershell
 npm publish
 ```
 
-## Scoped vs. Unscoped Packages
+For the **first** public release of a **scoped** package, you may need:
 
-### Current: Scoped Package (`@playwright/llm-reporter`)
-
-**Pros:**
-- Organized under organization
-- Aligns with Playwright's namespace
-- Professional appearance
-
-**Cons:**
-- Private by default; need `--access public` flag
-- Requires publisher to own/be part of organization
-- Organization members can publish under this scope
-
-### Alternative: Unscoped Package (`playwright-llm-reporter`)
-
-Rename in `package.json`:
-
-```json
-{
-  "name": "playwright-llm-reporter"
-}
+```powershell
+npm publish --access public
 ```
 
-**Pros:**
-- Simpler name
-- Public by default
-- No org requirements
+Common issues:
 
-**Cons:**
-- Namespace pollution risk
-- Less organized appearance
+- **Permission error / E403** – You don’t have rights to publish this scope/name. Confirm ownership or choose a different scope.
+- **"Cannot publish over existing version"** – The current `version` already exists on npm. Bump the version and try again.
 
-## Troubleshooting Publication
+---
 
-### "You do not have permission to publish this package"
+## 7. Verifying the Published Package
 
-The scoped organization `@playwright` is exclusive. Use an unscoped name or your own scope:
+After a successful publish:
 
-```json
-{
-  "name": "my-playwright-llm-reporter"
-}
-```
+1. **Check on npm** (replace with your actual package URL if you changed the name):
 
-Or use your organization scope:
+   - https://www.npmjs.com/package/@gcombrinck/playwright-llm-reporter
 
-```json
-{
-  "name": "@yourorg/playwright-llm-reporter"
-}
-```
+2. **Install in a clean project** and confirm integration.
 
-### "Package not found after publishing"
+   In a new directory:
 
-npm publishes can take 1-2 minutes to appear in the registry. Wait and retry:
+   ```powershell
+   mkdir test-playwright-llm-reporter
+   cd test-playwright-llm-reporter
+   npm init -y
+   npm install --save-dev @playwright/test @gcombrinck/playwright-llm-reporter
+   ```
+
+   Create a minimal `playwright.config.ts`:
+
+   ```ts
+   import type { PlaywrightTestConfig } from '@playwright/test';
+   import type { LlmReporterOptions } from '@gcombrinck/playwright-llm-reporter';
+
+   const config: PlaywrightTestConfig = {
+     testDir: './tests',
+     use: {
+       screenshot: 'only-on-failure',
+       video: 'retain-on-failure',
+       trace: 'retain-on-failure',
+     },
+      reporter: [
+        ['html'],
+        ['@gcombrinck/playwright-llm-reporter', {
+         outputDir: 'playwright-llm-report',
+         title: 'My Test Report',
+       } satisfies LlmReporterOptions],
+     ],
+   };
+
+   export default config;
+   ```
+
+   Add a simple test (e.g. `tests/example.spec.ts`), then run:
+
+   ```powershell
+   npx playwright test
+   ```
+
+   Confirm that `playwright-llm-report/index.html` is generated and behaves as described in `INTEGRATION.md`.
+
+3. (Optional) **Test the LLM server** from the installed package, following the integration guide:
+
+   ```powershell
+   # In PowerShell
+   $env:OPENAI_API_KEY="sk-..."
+   npx @gcombrinck/playwright-llm-reporter llm-server
+   ```
+
+   Or programmatically via:
+
+   ```ts
+   import { startLlmServer } from '@gcombrinck/playwright-llm-reporter/llm-server';
+
+   startLlmServer({ port: 3000 });
+   ```
+
+   Then re-run tests and open the report; the **Ask LLM** panel should be active.
+
+---
+
+## 8. Release Checklist
+
+Use this checklist for every release:
+
+- [ ] All tests pass (`npm test`).
+- [ ] TypeScript build succeeds (`npm run build`).
+- [ ] `CHANGELOG.md` updated (if you maintain one).
+- [ ] `package.json` version bumped (SemVer).
+- [ ] `npm pack --dry-run` shows only intended files.
+- [ ] `npm publish` (or `npm publish --access public`) completed successfully.
+- [ ] Package is visible on npm and installable in a clean project.
+- [ ] `INTEGRATION.md` and `README.md` are still accurate for installation and usage.
+
+---
+
+## 9. Troubleshooting
+
+### 9.1. Permission Errors (E403)
+
+- Confirm npm login and identity:
+
+  ```powershell
+  npm whoami
+  ```
+
+- Check if the package name already exists and who owns it:
+
+  ```powershell
+  npm view @gcombrinck/playwright-llm-reporter
+  ```
+
+- If you publish under an organization scope, list its members (replace `@your-org`):
+
+  ```powershell
+  npm org ls @your-org
+  ```
+
+- If you don’t control the scope or package, request access from the owners or change the `name` in `package.json` to a scope you control.
+
+### 9.2. Version Already Published
+
+If npm reports that the version already exists:
+
+1. Bump the version in `package.json` (or use `npm version patch|minor|major`).
+2. Rebuild and re-run `npm pack --dry-run` if needed.
+3. Run `npm publish` again.
+
+### 9.3. Consumers Can’t Import the Reporter
+
+If users report errors like "Cannot find module '@gcombrinck/playwright-llm-reporter'" or missing exports:
+
+- Verify that:
+  - `main`, `types`, and `exports` in `package.json` point to files that exist in the published `dist/` directory.
+  - The `files` array includes `dist` (and not just the TypeScript sources).
+- Use `npm pack --dry-run` to confirm that the built files are present.
+
+### 9.4. LLM Server Not Working After Install
+
+If consumers say the **Ask LLM** feature fails:
+
+- Confirm they followed `INTEGRATION.md`:
+  - Set `OPENAI_API_KEY`.
+  - Started the LLM server via CLI (`npx @gcombrinck/playwright-llm-reporter llm-server`) or programmatically.
+- Ensure that your published `exports` expose the `llm-server` entry point under `@gcombrinck/playwright-llm-reporter/llm-server`.
+
+---
+
+With this guide, maintainers can consistently build, version, publish, and verify the **Playwright LLM HTML Reporter** package on npm so users can install it with:
 
 ```bash
-npm info @your-package/name
+npm install --save-dev @gcombrinck/playwright-llm-reporter
 ```
-
-### "403 Forbidden"
-
-Either:
-1. Not logged in: `npm login` again
-2. Package name already taken: Choose a different name
-3. Org restrictions: Contact org admins
-
-## Promoting Your Package
-
-Once published:
-
-1. **Add to awesome-playwright** – https://github.com/mxschmitt/awesome-playwright
-2. **Share on Twitter/Dev.to** – "Check out my new Playwright reporter..."
-3. **Open discussion on Playwright Slack** – https://join.slack.com/t/playwright/shared_invite/...
-4. **Create example projects** – Show integration examples in separate repos
-5. **Badge in README** – Add npm badge: `https://img.shields.io/npm/v/@your-package/name`
-
-Example badge markdown:
-
-```markdown
-[![npm version](https://img.shields.io/npm/v/@playwright/llm-reporter)](https://www.npmjs.com/package/@playwright/llm-reporter)
-```
-
-## Maintenance
-
-After publishing:
-
-- **Monitor issues** – Respond to bug reports
-- **Review PRs** – Community contributions
-- **Semantic versioning** – Follow strict versioning
-- **CHANGELOG** – Document every release
-- **TypeScript** – Maintain type definitions
-- **CI/CD** – Automate testing before publish
-
-## Resources
-
-- [npm docs - Publishing](https://docs.npmjs.com/packages-and-modules/contributing-packages-to-the-registry)
-- [Semantic Versioning](https://semver.org/)
-- [GitHub Releases](https://docs.github.com/en/repositories/releasing-projects-on-github/managing-releases-in-a-repository)
-- [npm scopes](https://docs.npmjs.com/cli/v9/using-npm/scope)
-

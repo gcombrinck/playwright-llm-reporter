@@ -2,16 +2,17 @@ import express, { Request, Response } from 'express';
 import cors from 'cors';
 import OpenAI from 'openai';
 
-const app = express();
-app.use(cors());
-app.use(express.json());
+export function startLlmServer(options: { port?: number } = {}): void {
+  const app = express();
+  app.use(cors());
+  app.use(express.json());
 
-const apiKey = process.env.OPENAI_API_KEY;
-const client = apiKey
-  ? new OpenAI({ apiKey })
-  : null;
+  const apiKey = process.env.OPENAI_API_KEY;
+  const client = apiKey
+    ? new OpenAI({ apiKey })
+    : null;
 
-app.post('/llm/analyze', async (req: Request, res: Response) => {
+  app.post('/llm/analyze', async (req: Request, res: Response) => {
   const { question, tests } = req.body || {};
 
   try {
@@ -62,9 +63,17 @@ Please answer succinctly with concrete insights: highlight top failing files, fl
     console.error(err);
     res.status(500).json({ error: err.message || String(err) });
   }
-});
+  });
 
-const port = process.env.PORT || 3000;
-app.listen(port, () => {
-  console.log(`LLM server listening on http://localhost:${port}`);
-});
+  const envPort = process.env.PORT ? Number(process.env.PORT) : undefined;
+  const port = options.port ?? envPort ?? 3000;
+  app.listen(port, () => {
+    console.log(`LLM server listening on http://localhost:${port}`);
+  });
+}
+
+// If this file is run directly (e.g. via `npm run llm-server`),
+// start the server using the PORT env var or default to 3000.
+if (require.main === module) {
+  startLlmServer();
+}
