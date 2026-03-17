@@ -1,8 +1,8 @@
 {
   "name": "@gcombrinck/playwright-llm-reporter",
-  "version": "1.0.1",
+  "version": "1.0.2",
   "description": "Custom Playwright reporter that generates interactive HTML reports with optional LLM integration",
-  "author": "Your Name <your.email@example.com>",
+  "author": "Garth Combrinck <gcombrinck@gmail.com>",
   "license": "MIT",
   "repository": {
     "type": "git",
