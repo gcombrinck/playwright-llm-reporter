@@ -24,6 +24,7 @@ playwright-report/
 blob-report/
 test-results/
 .playwright/
+playwright-llm-report/
 
 ##############################
 # Env / Secrets
